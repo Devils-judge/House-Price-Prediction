@@ -1,0 +1,89 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+# Load the data
+data = pd.read_csv('C:/Users/tripa/OneDrive/Desktop/house prediction/archive (1)/housing.csv')
+
+# Assume 'median_house_value' is the target variable
+y = data['median_house_value']
+X = data.drop(['median_house_value'], axis=1)
+
+# Splitting the data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Preprocessing function for training data
+def preprocess_train_data(df):
+    df = df.copy()
+    df['total_rooms'] = np.log(df['total_rooms'] + 1)
+    df['total_bedrooms'] = np.log(df['total_bedrooms'] + 1)
+    df['population'] = np.log(df['population'] + 1)
+    df['households'] = np.log(df['households'] + 1)
+    df = df.join(pd.get_dummies(df['ocean_proximity'], prefix='ocean_proximity'))
+    df['bedroom_ratio'] = df['total_bedrooms'] / df['total_rooms']
+    df['household_rooms'] = df['total_rooms'] / df['households']
+    return df
+
+# Preprocess the training data
+X_train = preprocess_train_data(X_train)
+
+# Save the columns after preprocessing
+train_columns = X_train.columns
+
+# Check for missing values in training data
+print(X_train.isnull().sum())
+print(y_train.isnull().sum())
+
+# Fill missing values with the mean in training data
+X_train = X_train.fillna(X_train.mean())
+y_train = y_train.fillna(y_train.mean())
+
+# Ensure data types are consistent in training data
+print(X_train.dtypes)
+print(y_train.dtypes)
+print(X_train.shape)
+print(y_train.shape)
+
+# Train the model
+reg = LinearRegression()
+reg.fit(X_train, y_train)
+
+# Preprocessing function for test data
+def preprocess_test_data(df, train_columns):
+    df = df.copy()
+    df['total_rooms'] = np.log(df['total_rooms'] + 1)
+    df['total_bedrooms'] = np.log(df['total_bedrooms'] + 1)
+    df['population'] = np.log(df['population'] + 1)
+    df['households'] = np.log(df['households'] + 1)
+    df = df.join(pd.get_dummies(df['ocean_proximity'], prefix='ocean_proximity'))
+    df['bedroom_ratio'] = df['total_bedrooms'] / df['total_rooms']
+    df['household_rooms'] = df['total_rooms'] / df['households']
+    
+    # Ensure all one-hot encoded columns from the training data are present
+    for col in train_columns:
+        if col not in df.columns:
+            df[col] = 0  # Add missing columns with default value 0
+
+    return df[train_columns]  # Ensure the same column order as the training data
+
+# Preprocess the test data
+X_test = preprocess_test_data(X_test, train_columns)
+
+# Check for missing values in test data
+print(X_test.isnull().sum())
+print(y_test.isnull().sum())
+
+# Fill missing values with the mean in test data
+X_test = X_test.fillna(X_test.mean())
+y_test = y_test.fillna(y_test.mean())
+
+# Ensure data types are consistent in test data
+print(X_test.dtypes)
+print(y_test.dtypes)
+print(X_test.shape)
+print(y_test.shape)
+
+# Evaluate the model
+score = reg.score(X_test, y_test)
+print(f"R^2 score: {score}")
